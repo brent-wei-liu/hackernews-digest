@@ -116,7 +116,7 @@
 
 **特性：**
 - 查询结果包含热门讨论（评论数 >50）和持续热门（多榜单/多日出现）
-- 按 Focus Profile keywords 自动过滤和分组
+- 输出 Focus Profile 规则供 digest_generate.py 使用
 - domain 分布统计
 
 ### digest_generate.py
