@@ -1,2 +1,22 @@
 __pycache__/
 *.pyc
+*.pyo
+.env
+.DS_Store
+.pytest_cache/
+tests/screenshots/
+
+# SQLite snapshots stay local — markdown digests under data/digest_*.md
+# ship with the repo, the binary DB churns on every fetch and isn't
+# worth a per-commit blob.
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/*.bak
+data/orphan_digest_*.md
+data/tmp_*.md
+data/.fuse_hidden*
+
+# editor
+.vscode/
+.idea/
