@@ -155,7 +155,7 @@ SUMMARIZE_PROMPT = """你是 Hacker News 日报流水线的第 3 步：写作。
 按 type 排序（Show HN / Ask HN / Article / Discussion），每类一个 section：
 
 ### Show HN
-**[标题](hn_url)** ({score}⬆ {comments}💬)
+**[标题](hn_url)** ({{score}}⬆ {{comments}}💬)
 - **<关键词>**: 描述 (1-2 句)。（背景：context summary。）
 - **<关键词>**: 同上结构。
 （2-5 个 bullet 按重要性排序；substantive 少的类型 1-2 个就够。）
