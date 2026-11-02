@@ -8,14 +8,14 @@ Revived from a Hermes-era project and brought into line with the four sibling di
 - Three-step pipeline (Extract → Context → Summarize) replaces the older Draft → Critique → Refine reflection — no forced "今日观察" twists on thin news days
 - Single-file FastAPI on **port 8084**, retro phosphor-green + HN-orange UI
 - Read/unread mark, ★ star, back-to-top — same UX as the other digests
-- Gmail draft delivery via the Gmail MCP
+- Email delivery via Gmail SMTP (`email_sender.py`), falling back to a Gmail draft via the Gmail MCP
 
 ## Quick start
 
 ```bash
 cd ~/hackernews-digest
 pip install -r requirements.txt
-cp .env.example .env       # set DIGEST_RECIPIENT
+cp .env.example .env       # set DIGEST_RECIPIENT, GMAIL_SMTP_USER, GMAIL_APP_PASSWORD
 
 # Initialize the DB schema
 python3 db.py
@@ -49,9 +49,13 @@ python3 api.py
 | Task | Cron (PT) | Purpose |
 |---|---|---|
 | `hackernews-fetch` | 09:50 daily | pull top + best stories into SQLite |
-| `hackernews-digest` | 12:00 daily | run the Extract → Context → Summarize pipeline + save + email |
+| `hackernews-digest` | 12:00 daily | run the Extract → Context → Summarize pipeline + save + send via `email_sender.py` |
 
 Registered via the `mcp__scheduled-tasks__create_scheduled_task` MCP. Mirrored to both `~/.claude/scheduled-tasks/<task>/SKILL.md` and `~/Documents/Claude/Scheduled/<task>/SKILL.md`.
+
+## Email delivery
+
+Digests are sent by `email_sender.py` through `smtp.gmail.com:587` (STARTTLS) as plain text + rendered HTML, with no review step. Set `DIGEST_RECIPIENT`, `GMAIL_SMTP_USER` and `GMAIL_APP_PASSWORD` in `.env` (see `.env.example`); the App Password comes from https://myaccount.google.com/apppasswords and requires 2-Step Verification. Preview without sending using `python3 email_sender.py --dry-run`. Each digest date is sent once (logged in `data/email_sent.jsonl`); use `--force` to resend. If sending fails, the skill falls back to a Gmail draft via the Gmail MCP `create_draft` tool when that connector is available.
 
 ## Auto-start on boot
 
@@ -73,6 +77,7 @@ Logs: `/tmp/hackernews-digest.log` + `/tmp/hackernews-digest.err.log`.
 ├── fetcher.py             # HN Firebase API → SQLite (per-story commit, integrity_check)
 ├── digest_generate.py     # query payload + Extract/Context/Summarize prompt templates
 ├── hackernews_digest.py   # legacy CLI (subscribers / focus profiles)
+├── email_sender.py        # send a saved digest via Gmail SMTP (stdlib only)
 ├── api.py                 # FastAPI on port 8084
 ├── static/index.html      # 1980s newsroom terminal UI (single file)
 ├── data/                  # SQLite DB + per-day digest markdown
@@ -85,6 +90,8 @@ Logs: `/tmp/hackernews-digest.log` + `/tmp/hackernews-digest.err.log`.
 ```bash
 python3 api.py &           # in another terminal
 python3 -m pytest tests/ui/ -v
+
+python3 -m pytest tests/test_email_sender.py -v   # no server or network needed
 ```
 
 Tests skip cleanly if the DB hasn't been populated yet — useful right after first install.

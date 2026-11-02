@@ -15,6 +15,7 @@ data/*.db-wal
 data/*.bak
 data/orphan_digest_*.md
 data/tmp_*.md
+data/email_sent.jsonl
 data/.fuse_hidden*
 
 # editor

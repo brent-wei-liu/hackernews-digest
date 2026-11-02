@@ -86,7 +86,7 @@ Spawn an Agent. Give it:
 
 **Append**: "You have **0** web calls. All facts come from the contexted JSON. If something is missing, omit it — don't invent."
 
-Capture the final text. This is the digest that goes to Step 6 (save) and Step 7 (Gmail).
+Capture the final text. This is the digest that goes to Step 6 (save) and Step 7 (email).
 
 ### Step 6 — Save to DB (MANDATORY)
 
@@ -108,11 +108,27 @@ echo "saved as summary id=$NEW_ID"
 
 **Fallback on failure**: write the markdown to `data/orphan_digest_<date>.md` and prepend `[ORPHAN: not in DB] ` to the Step 7 email subject so the user notices.
 
-### Step 7 — Create Gmail draft
+### Step 7 — Send email via SMTP
 
-Use the Gmail MCP `create_draft` tool. **Convert markdown to HTML** before calling (`body` = markdown, `htmlBody` = rendered HTML). Recipient = `DIGEST_RECIPIENT` from `<project>/.env`. Subject = `HN Digest YYYY-MM-DD` (with `[ORPHAN: not in DB] ` prefix on save failure).
+The sender sends immediately, with no review step. Each digest date goes out once: a repeat run prints `{"sent": false, "skipped": true, ...}` and exits 0 — treat that as delivered, create no draft, and don't pass `--force` unless the user asked for a resend. `save-summary` dates rows in UTC, so use the UTC date here:
 
-Renderer requirements match the other digest projects: `#`/`##`/`###` → `<h1>`/`<h2>`/`<h3>`; `- ` → `<ul><li>`; `**text**` → `<strong>`; `` `x` `` → `<code>`; `[t](u)` → `<a>`; HTML-escape source first. Wrap in a minimal styled shell.
+```bash
+DATE=$(date -u +%Y-%m-%d)
+python3 email_sender.py --date "$DATE"
+# only if Step 6 fell back to the orphan file (subject gets the [ORPHAN: not in DB] prefix):
+python3 email_sender.py --date "$DATE" --file "data/orphan_digest_${DATE}.md" --orphan
+```
+
+Success prints `{"sent": true, ...}` and exits 0. The sender reads `DIGEST_RECIPIENT`, `GMAIL_SMTP_USER` and `GMAIL_APP_PASSWORD` from `<project>/.env`, and renders the markdown to HTML with a plain-text alternative. Subject = `HN Digest YYYY-MM-DD`. Use `--dry-run` to render and print headers without connecting.
+
+**Fallback on a non-zero exit** (missing credentials, blocked network, auth failure): keep the error text for Step 8, then create a Gmail draft if the Gmail MCP `create_draft` tool is available. Do not retry the send.
+
+```bash
+python3 email_sender.py --date "$DATE" --dry-run --html-out "$(mktemp -t hn_digest.XXXXXX.html)"
+# add --file/--orphan as above; the same renderer output becomes htmlBody
+```
+
+Pass `to` = `DIGEST_RECIPIENT`, `subject` = the Subject line from the dry-run output, `body` = the digest markdown, `htmlBody` = the rendered HTML file's contents. If the Gmail MCP isn't available, report the send failure — do not fail silently.
 
 ### Step 8 — Report
 
@@ -120,7 +136,7 @@ Print briefly:
 - Story count + per-list breakdown
 - Per-step counts (extract substantive vs filler / context web calls used / summarize chars)
 - Saved summary id (or `[ORPHAN]: ...` reason)
-- Draft creation status (or error)
+- Delivery status (sent via SMTP to `<recipient>` / already sent, skipped / SMTP failed with `<error>`, draft created with id `<id>` / SMTP failed with `<error>`, Gmail MCP unavailable)
 
 ## Why this pipeline replaces Draft → Critique → Refine
 
